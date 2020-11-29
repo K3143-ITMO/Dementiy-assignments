@@ -4,6 +4,7 @@ import os
 import pathlib
 import struct
 import typing as tp
+import sys
 
 from pyvcs.objects import hash_object
 
@@ -25,8 +26,19 @@ class GitIndexEntry(tp.NamedTuple):
     name: str
 
     def pack(self) -> bytes:
-        # PUT YOUR CODE HERE
-        ...
+        values = (self.ctime_s, self.ctime_n, self.mtime_s, self.mtime_n, self.dev, self.ino, self.mode, self.uid, self.gid, self.size) # ints prepared for straight-forward packing
+        bytecast_values = tuple([i.to_bytes(4, "big") for i in values]) # convert to network byte order
+        bytecast_str = struct.pack("4s4s4s4s4s4s4s4s4s4s", *bytecast_values) # pack using 10 4bytes objects because FUCK FORMAT STRINGS
+        bytecast_str += self.sha1 # simply concatenate
+        bytecast_str += self.flags.to_bytes(2, "big") # cast to network order, truncate to 2 and concatenate
+        bytecast_str += self.name.encode("ascii") # simply concatenate encoded string
+        if not len(bytecast_str) % 4 == 0: # if struct is not aligned to 4 byte-divisible size
+            padding_size = 4 - (len(bytecast_str) % 4) # calculate padded size
+            # align size - remaining symbols to align
+            print(f"padding required, apadding: {padding_size}", file=sys.stderr)
+        for i in range(0, padding_size):
+            bytecast_str += b"\x00"        
+        return bytecast_str
 
     @staticmethod
     def unpack(data: bytes) -> "GitIndexEntry":
