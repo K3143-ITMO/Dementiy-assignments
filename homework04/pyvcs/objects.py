@@ -38,7 +38,7 @@ def resolve_object(obj_name: str, gitdir: pathlib.Path) -> tp.List[str]:
     """
     Return objects by a prefix
     """
-    if not 4 < len(obj_name) < 40:
+    if not 4 <= len(obj_name) <= 40:
         raise Exception(f"Not a valid object name {obj_name}")
     dir_name = obj_name[:2]
     obj_file = obj_name[2:]
@@ -67,7 +67,7 @@ def read_object(sha: str, gitdir: pathlib.Path) -> tp.Tuple[str, bytes]:
     """
     Return object content
     """
-    obj_name = resolve_object(sha[:5], gitdir)[0]
+    obj_name = resolve_object(sha, gitdir)[0]
     obj_dir = pathlib.Path(obj_name[:2])
     obj_file_name = pathlib.Path(obj_name[2:])
     path = gitdir / "objects" / obj_dir / obj_file_name
@@ -96,10 +96,7 @@ def cat_file(obj_name: str, pretty: bool = True) -> None:
     """
     Print file content by hash
     """
-    gitdir_name = os.getenv("GIT_DIR")
-    if not gitdir_name:
-        gitdir_name = ".git"
-    gitdir = pathlib.Path(f"./{gitdir_name}")
+    gitdir = repo_find()
     _, content = read_object(obj_name, gitdir)
     if pretty:
         result = content.decode("ascii")
