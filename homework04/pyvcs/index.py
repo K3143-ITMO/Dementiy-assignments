@@ -197,7 +197,9 @@ def ls_files(gitdir: pathlib.Path, details: bool = False) -> None:
             ]  # get mode in decimal, convert to octal, convert to string, strip prefix ("0o")
             sha = entry.sha1.hex()
             name = entry.name
-            print(f"{mode} {sha} 0\t{name}")  # we are not doing a merge command yet, so stage is 0
+            flags = entry.flags
+            stage = (entry.flags >> 12) & 3 # Dementiy bit-field magic
+            print(f"{mode} {sha} {stage}\t{name}")  
     else:
         for entry in index_entries:
             name = entry.name
@@ -229,6 +231,7 @@ def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool
         # 1 bit assume-valid (will be 1 for now),
         # 2 bit 0 because we use version 2,
         # 13 bits name_len (or 0xFFF)
+        # reversed because little_endian or some shit
         index_entry = GitIndexEntry(
             int(os_stats.st_ctime),
             0,
