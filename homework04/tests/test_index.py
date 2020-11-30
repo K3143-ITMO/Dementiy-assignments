@@ -1,5 +1,6 @@
 import io
 import pathlib
+import sys
 import unittest
 from unittest.mock import patch
 

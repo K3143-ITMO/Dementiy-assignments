@@ -1,17 +1,22 @@
+"""
+Git index operations
+"""
 import hashlib
-import operator
+# import operator
 import os
 import pathlib
 import string
-import collections
 import struct
-import sys
 import typing as tp
 
 from pyvcs.objects import hash_object
 
 
 class GitIndexEntry(tp.NamedTuple):
+    """
+    An index entry in readable format
+    """
+
     # @see: https://github.com/git/git/blob/master/Documentation/technical/index-format.txt
     ctime_s: int
     ctime_n: int
@@ -28,6 +33,9 @@ class GitIndexEntry(tp.NamedTuple):
     name: str
 
     def pack(self) -> bytes:
+        """
+        Pack into index format
+        """
         # shit code, btw. Less shit than the unpack() function, though
         values = (
             self.ctime_s,
@@ -55,12 +63,15 @@ class GitIndexEntry(tp.NamedTuple):
         if not len(bytecast_str) % 4 == 0:  # if struct is not aligned to 4 byte-divisible size
             padding_size = 4 - (len(bytecast_str) % 4)  # calculate padded size
             # align size - remaining symbols to align
-            for i in range(0, padding_size): # pad the shit to fill the void in my fucking soul
+            for _ in range(0, padding_size):  # pad the shit to fill the void in my fucking soul
                 bytecast_str += b"\x00"
         return bytecast_str
 
     @staticmethod
     def unpack(data: bytes) -> "GitIndexEntry":
+        """
+        Unpack into readable format
+        """
         # shit code, btw
         last_byte = data[-1]  # start at something
         while last_byte == 0:  # check for NUL padding
@@ -105,49 +116,49 @@ class GitIndexEntry(tp.NamedTuple):
 
 
 def read_index(gitdir: pathlib.Path) -> tp.List[GitIndexEntry]:
-    index_entries = [] 
-    if not (gitdir / "index").is_file(): # no index detected, return an empty list
+    """
+    Get index entries in readable format from index
+    """
+    index_entries = []
+    if not (gitdir / "index").is_file():  # no index detected, return an empty list
         return []
     with open(gitdir / "index", "rb") as index_file:
         data = index_file.read()
-    data = data[:-20] # delete the checksum because i said so, goddamnit FUCK
-    version = 2 # fuck versions
-    version_bytecast = version.to_bytes(4, "big") # go to bytes
-    version_pos = data.find(version_bytecast) # find the version in byte stream
-    data = data[version_pos+4:] # delete the DIRC and version
-    entry_count_bytes = data[:4] # entry count bytes
-    entry_count_pos = data.find(entry_count_bytes) # find the entry count in byte stream
-    entry_count = int.from_bytes(entry_count_bytes, "big") # cast to int
-    data = data[entry_count_pos+4:] # delete the entry count from byte stream
-    for i in range(entry_count): # for each entry
-        entry = data[:62] # 62 bytes are 10 4 byte ints + 20 byte sha
-        flags = int.from_bytes(data[60:62], "big")
+    data = data[:-20]  # delete the checksum because i said so, goddamnit FUCK
+    version = 2  # fuck versions
+    version_bytecast = version.to_bytes(4, "big")  # go to bytes
+    version_pos = data.find(version_bytecast)  # find the version in byte stream
+    data = data[version_pos + 4 :]  # delete the DIRC and version
+    entry_count_bytes = data[:4]  # entry count bytes
+    entry_count_pos = data.find(entry_count_bytes)  # find the entry count in byte stream
+    entry_count = int.from_bytes(entry_count_bytes, "big")  # cast to int
+    data = data[entry_count_pos + 4 :]  # delete the entry count from byte stream
+    for _ in range(entry_count):  # for each entry
+        entry = data[:62]  # 62 bytes are 10 4 byte ints + 20 byte sha + 2 byte flags
         # those are immutable, i hope
-        data = data[62:] # truncate byte stream
-        name_len = flags & 0xFFF
+        data = data[62:]  # truncate byte stream
         in_extension = False
-        while True: # because FUCK YOU GODDAMNIT FUCK ASS SHIT
-            if len(data) == 0: # no entries left, abort
+        while True:  # because FUCK YOU GODDAMNIT FUCK ASS SHIT
+            if len(data) == 0:  # no entries left, abort
                 break
-            byte = chr(data[0]) # get symbol
-            if byte == "\x00": # padding starts, name ends
+            byte = chr(data[0])  # get symbol
+            if byte == "\x00":  # padding starts, name ends
                 break
-            if byte == ".": # hacks
-                in_extension = True # so hacks
-            if in_extension and not byte == ".": # very hacks
-                if not byte in string.ascii_letters: # much hacks
-                    break # fuck i hate myself
-            entry += byte.encode("ascii") # add as name
-            data = data[1:] # truncate byte from byte stream
+            if byte == ".":  # hacks
+                in_extension = True  # so hacks
+            if in_extension and not byte == ".":  # very hacks
+                if not byte in string.ascii_letters:  # much hacks
+                    break  # fuck i hate myself
+            entry += byte.encode("ascii")  # add as name
+            data = data[1:]  # truncate byte from byte stream
         while True:
-            if len(data) == 0: # no entries left, abort
+            if len(data) == 0:  # no entries left, abort
                 break
             byte = chr(data[0])
-            if byte != "\x00": # not padding
+            if byte != "\x00":  # not padding
                 break
-            entry += byte.encode("ascii") # add padding
-            data = data[1:] # truncate byte from byte stream
-
+            entry += byte.encode("ascii")  # add padding
+            data = data[1:]  # truncate byte from byte stream
 
         entry_unpacked = GitIndexEntry.unpack(entry)
         index_entries.append(entry_unpacked)
@@ -156,45 +167,68 @@ def read_index(gitdir: pathlib.Path) -> tp.List[GitIndexEntry]:
 
 
 def write_index(gitdir: pathlib.Path, entries: tp.List[GitIndexEntry]) -> None:
+    """
+    Write entries to index
+    """
     with open(gitdir / "index", "wb") as index_file:
-        version = 2 # FUCK VERSIONS
+        version = 2  # FUCK VERSIONS
         version_bytecast = version.to_bytes(4, "big")
-        entries_len_bytecast = len(entries).to_bytes(4, "big") 
-        index_content = f"DIRC".encode()
+        entries_len_bytecast = len(entries).to_bytes(4, "big")
+        index_content = "DIRC".encode()
         index_content += version_bytecast
         index_content += entries_len_bytecast
         for entry in entries:
             index_content += entry.pack()
         # fuck extensions
-        index_sha = hashlib.sha1(
-            index_content
-        ).digest()  # in binary because FUCK YOU ASSHOLE
+        index_sha = hashlib.sha1(index_content).digest()  # in binary because FUCK YOU ASSHOLE
         index_content += index_sha
         index_file.write(index_content)
 
 
 def ls_files(gitdir: pathlib.Path, details: bool = False) -> None:
-    # PUT YOUR CODE HERE
-    ...
+    """
+    Get indexed files' details
+    """
+    index_entries = read_index(gitdir)
+    if details:
+        for entry in index_entries:
+            mode = str(oct(entry.mode))[
+                2:
+            ]  # get mode in decimal, convert to octal, convert to string, strip prefix ("0o")
+            sha = entry.sha1.hex()
+            name = entry.name
+            print(f"{mode} {sha} 0\t{name}")  # we are not doing a merge command yet, so stage is 0
+    else:
+        for entry in index_entries:
+            name = entry.name
+            print(f"{name}")
 
 
 def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool = True) -> None:
-    index_entries = []
-    absolute_paths = [i.absolute() for i in paths] # get absolute paths
-    absolute_paths.sort() # sort by them
-    relative_paths = [i.relative_to(os.getcwd()) for i in absolute_paths] # revert back to relative paths
-    relative_paths.reverse() # reverse the list because FUCK IF I KNOW
-    for path in relative_paths: # finally
-        with open(path, "rb") as f_name: 
-            data = f_name.read() # read some shit
-        obj_storage_hash = hash_object(data, "blob", True) # write the object you motherfucker
-        obj_hash = hashlib.sha1(data).digest() # get the hash in normal type because str sucks dick
+    """
+    Update index by adding new files
+    """
+    index_entries: tp.List[GitIndexEntry] = []
+    absolute_paths = [i.absolute() for i in paths]  # get absolute paths
+    absolute_paths.sort()  # sort by them
+    relative_paths = [
+        i.relative_to(os.getcwd()) for i in absolute_paths
+    ]  # revert back to relative paths
+    relative_paths.reverse()  # reverse the list because FUCK IF I KNOW
+    for path in relative_paths:  # finally
+        with open(path, "rb") as f_name:
+            data = f_name.read()  # read some shit
+        _ = hash_object(data, "blob", True)  # write the object you motherfucker
+        obj_hash = hashlib.sha1(data).digest()  # get the hash in normal type because str sucks dick
         os_stats = os.stat(path, follow_symlinks=False)  # fuck links
         # fuck this object, really
         name_len = len(str(path))
-        if name_len > 0xFFF: # fucking bit fields
+        if name_len > 0xFFF:  # fucking bit fields
             name_len = 0xFFF
-        flags = name_len + 0b0001 # 1 bit assume-valid (will be 1 for now), 2 bit 0 because we use version 2, 13 bits name_len (or 0xFFF)
+        flags = name_len + 0b0001
+        # 1 bit assume-valid (will be 1 for now),
+        # 2 bit 0 because we use version 2,
+        # 13 bits name_len (or 0xFFF)
         index_entry = GitIndexEntry(
             int(os_stats.st_ctime),
             0,
@@ -207,11 +241,11 @@ def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool
             os_stats.st_gid,
             os_stats.st_size,
             obj_hash,
-            flags, 
+            flags,
             str(path),
         )
         # THIS FUCKING SUCKS ASS
-        if not index_entry in index_entries:  # skip existing entries
+        if index_entry not in index_entries:  # skip existing entries
             index_entries.insert(0, index_entry)
 
     if write:
