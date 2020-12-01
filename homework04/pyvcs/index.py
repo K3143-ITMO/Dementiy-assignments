@@ -8,6 +8,7 @@ import pathlib
 import string
 import struct
 import typing as tp
+import sys
 
 from pyvcs.objects import hash_object
 
@@ -220,8 +221,7 @@ def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool
     for path in relative_paths:  # finally
         with open(path, "rb") as f_name:
             data = f_name.read()  # read some shit
-        _ = hash_object(data, "blob", True)  # write the object you motherfucker
-        obj_hash = hashlib.sha1(data).digest()  # get the hash in normal type because str sucks dick
+        obj_hash = bytes.fromhex(hash_object(data, "blob", True))  # write the object you motherfucker
         os_stats = os.stat(path, follow_symlinks=False)  # fuck links
         # fuck this object, really
         name_len = len(str(path))

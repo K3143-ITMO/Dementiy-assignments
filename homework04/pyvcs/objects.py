@@ -18,19 +18,18 @@ def hash_object(data: bytes, fmt: str, write: bool = False) -> str:
     """
     Hash an object and return the hash (write to a file if write is set)
     """
-    if fmt == "blob":
-        header = f"blob {len(data)}\0"
-        store = header + data.decode()
-        obj_hash = hashlib.sha1(store.encode()).hexdigest()
-        blob = zlib.compress(store.encode())
-        if write:
-            gitdir = repo_find()
-            blob_dir = pathlib.Path(str(gitdir) + "/objects/" + obj_hash[:2])
-            if not blob_dir.is_dir():
-                os.makedirs(blob_dir)
-            blob_name = blob_dir / obj_hash[2:]
-            with open(blob_name, "wb") as blob_file:
-                blob_file.write(blob)
+    header = f"{fmt} {len(data)}\0".encode()
+    store = header + data
+    obj_hash = hashlib.sha1(store).hexdigest()
+    obj = zlib.compress(store)
+    if write:
+        gitdir = repo_find()
+        obj_dir = pathlib.Path(str(gitdir) + "/objects/" + obj_hash[:2])
+        if not obj_dir.is_dir():
+            os.makedirs(obj_dir)
+        obj_name = obj_dir / obj_hash[2:]
+        with open(obj_name, "wb") as obj_file:
+            obj_file.write(obj)
     return obj_hash
 
 
