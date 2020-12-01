@@ -28,12 +28,15 @@ def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], dirname: str
     """
     tree_entries = []
     for entry in index:
-        # because fuck you, leather man
+        prefix, name = os.path.split(entry.name)
+        if prefix:
+            pass # i hate myself and my life
+            #tree_hash = write_tree(gitdir, index, name)
         mode = str(oct(entry.mode))[2:]
         tree_entry = f"{mode} {entry.name}\0".encode()
         tree_entry += entry.sha1
-        tree_entries.append(tree_entry)         
-    
+        tree_entries.append(tree_entry)
+
     data = "".encode()
     for tree_entry in tree_entries:
         data += tree_entry
