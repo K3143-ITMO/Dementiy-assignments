@@ -2,7 +2,6 @@
 Git index operations
 """
 import hashlib
-# import operator
 import os
 import pathlib
 import string
@@ -11,7 +10,6 @@ import typing as tp
 import sys
 
 from pyvcs.objects import hash_object
-
 
 class GitIndexEntry(tp.NamedTuple):
     """
@@ -37,34 +35,28 @@ class GitIndexEntry(tp.NamedTuple):
         """
         Pack into index format
         """
-        # shit code, btw. Less shit than the unpack() function, though
         values = (
             self.ctime_s,
             self.ctime_n,
             self.mtime_s,
             self.mtime_n,
             self.dev,
-            self.ino,
+            self.ino & 0xFFFFFFFF, # truncate to 4 bytes
             self.mode,
             self.uid,
             self.gid,
             self.size,
+            self.sha1,
+            self.flags
         )  # ints prepared for straight-forward packing
-        bytecast_values = tuple(
-            [i.to_bytes(4, "big") for i in values]
-        )  # convert to network byte order
         bytecast_str = struct.pack(
-            "4s4s4s4s4s4s4s4s4s4s", *bytecast_values
-        )  # pack using 10 4bytes objects because FUCK FORMAT STRINGS
-        bytecast_str += self.sha1  # simply concatenate
-        bytecast_str += self.flags.to_bytes(
-            2, "big"
-        )  # cast to network order, truncate to 2 and concatenate
+            "!LLLLLLLLLL20sH", *values
+        )  # pack
         bytecast_str += self.name.encode("ascii")  # simply concatenate the encoded string
-        if not len(bytecast_str) % 4 == 0:  # if struct is not aligned to 4 byte-divisible size
-            padding_size = 4 - (len(bytecast_str) % 4)  # calculate padded size
+        if not len(bytecast_str) % 8 == 0:  # if struct is not aligned to 8 byte-divisible size
+            padding_size = 8 - (len(bytecast_str) % 8)  # calculate padded size
             # align size - remaining symbols to align
-            for _ in range(0, padding_size):  # pad the shit to fill the void in my fucking soul
+            for _ in range(0, padding_size):  # pad the entry
                 bytecast_str += b"\x00"
         return bytecast_str
 
@@ -73,46 +65,36 @@ class GitIndexEntry(tp.NamedTuple):
         """
         Unpack into readable format
         """
-        # shit code, btw
         last_byte = data[-1]  # start at something
         while last_byte == 0:  # check for NUL padding
             data = data[:-1]  # remove it
-            last_byte = data[-1]  # update last_char
+            last_byte = data[-1]  # update last_byte
         name = ""
         while chr(last_byte) in (
             string.ascii_letters + string.punctuation + string.digits
-        ):  # name can't contain non-character bytes, right? fucking shit
+        ):  # name can't contain non-character bytes
             name += chr(last_byte)  # add the letter to the name
             data = data[:-1]  # remove it from the data stream
             last_byte = data[-1]  # update last_char
         name = name[::-1]  # reverses the name (i. e, "txt.rab" converts to "bar.txt")
-        flags = int.from_bytes(
-            data[-2:], "big"
-        )  # get the flags, casting to int from big-endian bytes
-        data = data[:-2]  # remove the flags from the byte stream
-        sha = data[-20:]  # get the sha (it's in bytes, no converstion required)
-        data = data[:-20]  # remove the sha from the data
-        unpacked_ints = struct.unpack(
-            "4s4s4s4s4s4s4s4s4s4s", data
-        )  # we can unpack the big-endian byte snippets with struct now
-        bytecast_ints = tuple(
-            [int.from_bytes(i, "big") for i in unpacked_ints]
-        )  # and cast them to ints
+        unpacked = struct.unpack(
+            "!LLLLLLLLLL20sH", data
+        )
         index_entry = GitIndexEntry(
-            bytecast_ints[0],
-            bytecast_ints[1],
-            bytecast_ints[2],
-            bytecast_ints[3],
-            bytecast_ints[4],
-            bytecast_ints[5],
-            bytecast_ints[6],
-            bytecast_ints[7],
-            bytecast_ints[8],
-            bytecast_ints[9],
-            sha,
-            flags,
+            unpacked[0],
+            unpacked[1],
+            unpacked[2],
+            unpacked[3],
+            unpacked[4],
+            unpacked[5],
+            unpacked[6],
+            unpacked[7],
+            unpacked[8],
+            unpacked[9],
+            unpacked[10],
+            unpacked[11],
             name,
-        )  # construct the index entry FINALLY GODFUCKINGDAMNIT
+        )  # construct the index entry
         return index_entry
 
 
@@ -125,8 +107,8 @@ def read_index(gitdir: pathlib.Path) -> tp.List[GitIndexEntry]:
         return []
     with open(gitdir / "index", "rb") as index_file:
         data = index_file.read()
-    data = data[:-20]  # delete the checksum because i said so, goddamnit FUCK
-    version = 2  # fuck versions
+    data = data[:-20]  # delete the checksum
+    version = 2 # we only use version 2
     version_bytecast = version.to_bytes(4, "big")  # go to bytes
     version_pos = data.find(version_bytecast)  # find the version in byte stream
     data = data[version_pos + 4 :]  # delete the DIRC and version
@@ -135,24 +117,22 @@ def read_index(gitdir: pathlib.Path) -> tp.List[GitIndexEntry]:
     entry_count = int.from_bytes(entry_count_bytes, "big")  # cast to int
     data = data[entry_count_pos + 4 :]  # delete the entry count from byte stream
     for _ in range(entry_count):  # for each entry
-        entry = data[:62]  # 62 bytes are 10 4 byte ints + 20 byte sha + 2 byte flags
+        entry = data[:60]  # 60 bytes are 10 4 byte ints + 20 byte sha
         # those are immutable, i hope
-        data = data[62:]  # truncate byte stream
-        in_extension = False
-        while True:  # because FUCK YOU GODDAMNIT FUCK ASS SHIT
-            if len(data) == 0:  # no entries left, abort
-                break
-            byte = chr(data[0])  # get symbol
-            if byte == "\x00":  # padding starts, name ends
-                break
-            if byte == ".":  # hacks
-                in_extension = True  # so hacks
-            if in_extension and not byte == ".":  # very hacks
-                if not byte in string.ascii_letters:  # much hacks
-                    break  # fuck i hate myself
-            entry += byte.encode("ascii")  # add as name
-            data = data[1:]  # truncate byte from byte stream
-        while True:
+        data = data[60:]  # truncate byte stream
+        flags = data[:2] # 2-byte flags
+        data = data[2:] # truncate byte stream
+        entry += flags
+        flags = int.from_bytes(flags, "big") # cast to int
+        # namelen will be equal to flags because every other flag bit is 0
+        # (Dementiy magic)
+        name = ""
+        # not implementing getting name if namelen > 0xFFF
+        for i in range(flags):
+            name += chr(data[0]) # add symbol
+            data = data[1:] # truncate byte stream
+        entry += name.encode()
+        while True: # just don't touch this, plz
             if len(data) == 0:  # no entries left, abort
                 break
             byte = chr(data[0])
@@ -172,7 +152,7 @@ def write_index(gitdir: pathlib.Path, entries: tp.List[GitIndexEntry]) -> None:
     Write entries to index
     """
     with open(gitdir / "index", "wb") as index_file:
-        version = 2  # FUCK VERSIONS
+        version = 2  # we only use version 2
         version_bytecast = version.to_bytes(4, "big")
         entries_len_bytecast = len(entries).to_bytes(4, "big")
         index_content = "DIRC".encode()
@@ -180,8 +160,8 @@ def write_index(gitdir: pathlib.Path, entries: tp.List[GitIndexEntry]) -> None:
         index_content += entries_len_bytecast
         for entry in entries:
             index_content += entry.pack()
-        # fuck extensions
-        index_sha = hashlib.sha1(index_content).digest()  # in binary because FUCK YOU ASSHOLE
+        # we don't use extensions
+        index_sha = hashlib.sha1(index_content).digest()  # in binary
         index_content += index_sha
         index_file.write(index_content)
 
@@ -197,14 +177,11 @@ def ls_files(gitdir: pathlib.Path, details: bool = False) -> None:
                 2:
             ]  # get mode in decimal, convert to octal, convert to string, strip prefix ("0o")
             sha = entry.sha1.hex()
-            name = entry.name
-            flags = entry.flags
             stage = (entry.flags >> 12) & 3 # Dementiy bit-field magic
-            print(f"{mode} {sha} {stage}\t{name}")  
+            print(f"{mode} {sha} {stage}\t{entry.name}")  
     else:
         for entry in index_entries:
-            name = entry.name
-            print(f"{name}")
+            print(f"{entry.name}")
 
 
 def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool = True) -> None:
@@ -217,25 +194,24 @@ def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool
     relative_paths = [
         i.relative_to(os.getcwd()) for i in absolute_paths
     ]  # revert back to relative paths
-    relative_paths.reverse()  # reverse the list because FUCK IF I KNOW
+    relative_paths.reverse()  # reverse the list because sorting discarding length is hard
     for path in relative_paths:  # finally
         with open(path, "rb") as f_name:
-            data = f_name.read()  # read some shit
-        obj_hash = bytes.fromhex(hash_object(data, "blob", True))  # write the object you motherfucker
-        os_stats = os.stat(path, follow_symlinks=False)  # fuck links
-        # fuck this object, really
+            data = f_name.read()  # read data
+        obj_hash = bytes.fromhex(hash_object(data, "blob", True))  # write the object
+        os_stats = os.stat(path, follow_symlinks=False)  # i hope nobody uses links in repos
         name_len = len(str(path))
-        if name_len > 0xFFF:  # fucking bit fields
+        if name_len > 0xFFF:  # bit field magic
             name_len = 0xFFF
-        flags = name_len + 0b0001
-        # 1 bit assume-valid (will be 1 for now),
+        flags = name_len
+        # 1 bit assume-valid (will be 0 for now) because Dementiy said so
         # 2 bit 0 because we use version 2,
         # 13 bits name_len (or 0xFFF)
-        # reversed because little_endian or some shit
+        # So overall flags == name_len
         index_entry = GitIndexEntry(
-            int(os_stats.st_ctime),
+            int(os_stats.st_ctime), # apparently this is float
             0,
-            int(os_stats.st_mtime),
+            int(os_stats.st_mtime), # apparently this is float
             0,
             os_stats.st_dev,
             os_stats.st_ino,
@@ -247,7 +223,6 @@ def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool
             flags,
             str(path),
         )
-        # THIS FUCKING SUCKS ASS
         if index_entry not in index_entries:  # skip existing entries
             index_entries.insert(0, index_entry)
 
