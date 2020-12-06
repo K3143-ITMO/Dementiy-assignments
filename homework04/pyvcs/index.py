@@ -107,37 +107,24 @@ def read_index(gitdir: pathlib.Path) -> tp.List[GitIndexEntry]:
         return []
     with open(gitdir / "index", "rb") as index_file:
         data = index_file.read()
-    data = data[:-20]  # delete the checksum
-    version = 2 # we only use version 2
-    version_bytecast = version.to_bytes(4, "big")  # go to bytes
-    version_pos = data.find(version_bytecast)  # find the version in byte stream
-    data = data[version_pos + 4 :]  # delete the DIRC and version
-    entry_count_bytes = data[:4]  # entry count bytes
-    entry_count_pos = data.find(entry_count_bytes)  # find the entry count in byte stream
-    entry_count = int.from_bytes(entry_count_bytes, "big")  # cast to int
-    data = data[entry_count_pos + 4 :]  # delete the entry count from byte stream
+    entry_count = struct.unpack("!i", data[8:12])[0]
+    data = data[12:] # truncate byte stream
     for _ in range(entry_count):  # for each entry
         entry = data[:60]  # 60 bytes are 10 4 byte ints + 20 byte sha
-        # those are immutable, i hope
-        data = data[60:]  # truncate byte stream
-        flags = data[:2] # 2-byte flags
-        data = data[2:] # truncate byte stream
+        flags = data[60:62] # 2-byte flags
+        data = data[62:] # truncate byte stream
         entry += flags
         flags = int.from_bytes(flags, "big") # cast to int
         # namelen will be equal to flags because every other flag bit is 0
         # (Dementiy magic)
-        name = ""
+        name = data[:flags].decode()
+        data = data[flags:]
         # not implementing getting name if namelen > 0xFFF
-        for i in range(flags):
-            name += chr(data[0]) # add symbol
-            data = data[1:] # truncate byte stream
         entry += name.encode()
         while True: # just don't touch this, plz
-            if len(data) == 0:  # no entries left, abort
-                break
+            if len(data) == 0: break # no entries left, abort
             byte = chr(data[0])
-            if byte != "\x00":  # not padding
-                break
+            if byte != "\x00": break # not padding
             entry += byte.encode("ascii")  # add padding
             data = data[1:]  # truncate byte from byte stream
 
