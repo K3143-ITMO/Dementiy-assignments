@@ -19,19 +19,21 @@ def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], dirname: str
     """
     tree_entries = []
     for entry in index:
+        _, name = os.path.split(entry.name)
         if dirname:  # if we got in here from a recursive call
-            prefix, name = os.path.split(
-                dirname
-            )  # yield a path before the name and the name itself
-            # i.e, "/foo/bar/baz" -> prefix=="/foo/bar", name=="baz"
+            names = dirname.split(os.sep)
         else:  # not from a recursive call, start at the entry name
-            prefix, name = os.path.split(entry.name)
-        if prefix:  # if we have is in a directory
-            start, _ = os.path.split(prefix)  # start splitting off chunks of the path
-            while start.find(os.sep) != -1:  # we can't stop until we get the new full path
-                # (from dirname to the entry.name file)
-                start, remainder = os.path.split(start)
-                name = remainder + name  # add to the path
+            names = entry.name.split(os.sep)
+        if len(names) != 1:  # if we have is in a directory
+            prefix = names[0]
+            name = f"{os.sep}".join(names[1:])
+            #print(f"start for directory {prefix} before while: {start}", file=sys.stderr)
+            #while start.find(os.sep) != -1:  # we can't stop until we get the new full path
+            #    print("must get full path")
+            #    # (from dirname to the entry.name file)
+            #    start, remainder = os.path.split(start)
+            #    print(f"remainder is {remainder}")
+            #    name = remainder + name  # add to the path
             mode = "40000"  # mode magic
             tree_entry = f"{mode} {prefix}\0".encode()
             tree_entry += bytes.fromhex(
