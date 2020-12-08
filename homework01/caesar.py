@@ -20,7 +20,9 @@ def encrypt_caesar(plaintext: str, shift: int = 3) -> str:
     ascii_lowercase_letters_end = ord("z")
     alphabet_len = len(string.ascii_lowercase)  # length of latin alphabet
     for i in plaintext:
-        if i in string.ascii_letters:  # ascii_letters is both predefined and locale-independent
+        if (
+            i in string.ascii_letters
+        ):  # ascii_letters is both predefined and locale-independent
             if (i in string.ascii_lowercase) and (
                 ord(i) + shift > ascii_lowercase_letters_end
             ):  # shifting of letters that loop back to the start of the alphabet
@@ -79,7 +81,9 @@ def caesar_breaker_brute_force(ciphertext: str, dictionary: tp.Set[str]) -> int:
     """
     best_shift = 0
     alphabet_len = len(string.ascii_lowercase)  # length of alphabet
-    for i in range(0, alphabet_len):  # i hope nobody shifts more than that, as it is unreasonable
+    for i in range(
+        0, alphabet_len
+    ):  # i hope nobody shifts more than that, as it is unreasonable
         try_plain = decrypt_caesar(ciphertext, i)  # decryption attempt
         if try_plain in dictionary:
             best_shift = i

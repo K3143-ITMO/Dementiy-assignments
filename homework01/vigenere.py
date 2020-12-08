@@ -22,7 +22,9 @@ def encrypt_vigenere(plaintext: str, keyword: str) -> str:
     alphabet_len = len(string.ascii_lowercase)  # length of latin alphabet
     # I need indices, so i have to use range since a simple "for i in smth" loop has no simple way of getting the element index
     for i in range(len(plaintext)):
-        key_pos = i % (len(keyword))  # letter position in keyword, range [0; len(keyword))
+        key_pos = i % (
+            len(keyword)
+        )  # letter position in keyword, range [0; len(keyword))
         # determining shift
         # Wanted to use modulo division, but the rems are different for uppercase and lowercase
         # I'll stick with the method of checking case and subtracting ascii_letters_start consts
@@ -40,11 +42,15 @@ def encrypt_vigenere(plaintext: str, keyword: str) -> str:
             if (character in string.ascii_lowercase) and (
                 ord(character) + shift > ascii_lowercase_letters_end
             ):  # shifting of letters that loop back to the start of the alphabet
-                ciphertext += chr(ord(character) - alphabet_len + shift)  # lowercase letters
+                ciphertext += chr(
+                    ord(character) - alphabet_len + shift
+                )  # lowercase letters
             elif (character in string.ascii_uppercase) and (
                 ord(character) + shift > ascii_uppercase_letters_end
             ):  # shifting of letters that loop back to the start of the alphabet
-                ciphertext += chr(ord(character) - alphabet_len + shift)  # uppercase letters
+                ciphertext += chr(
+                    ord(character) - alphabet_len + shift
+                )  # uppercase letters
             else:
                 ciphertext += chr(ord(character) + shift)  # base case
         else:
@@ -69,7 +75,9 @@ def decrypt_vigenere(ciphertext: str, keyword: str) -> str:
     alphabet_len = len(string.ascii_lowercase)  # length of latin alphabet
     # I need indices, so i have to use range since a simple "for i in smth" loop has no simple way of getting the element index
     for i in range(len(ciphertext)):
-        key_pos = i % (len(keyword))  # letter position in keyword, range [0; len(keyword))
+        key_pos = i % (
+            len(keyword)
+        )  # letter position in keyword, range [0; len(keyword))
         # determining shift
         # Wanted to use modulo division, but the rems are different for uppercase and lowercase
         # I'll stick with the method of checking case and subtracting ascii_letters_start consts
@@ -87,11 +95,15 @@ def decrypt_vigenere(ciphertext: str, keyword: str) -> str:
             if (character in string.ascii_lowercase) and (
                 ord(character) - shift < ascii_lowercase_letters_start
             ):  # shifting of letters that loop back to the start of the alphabet
-                plaintext += chr(ord(character) + alphabet_len - shift)  # lowercase letters
+                plaintext += chr(
+                    ord(character) + alphabet_len - shift
+                )  # lowercase letters
             elif (character in string.ascii_uppercase) and (
                 ord(character) - shift < ascii_uppercase_letters_start
             ):  # shifting of letters that loop back to the start of the alphabet
-                plaintext += chr(ord(character) + alphabet_len - shift)  # uppercase letters
+                plaintext += chr(
+                    ord(character) + alphabet_len - shift
+                )  # uppercase letters
             else:
                 plaintext += chr(ord(character) - shift)  # base case
         else:

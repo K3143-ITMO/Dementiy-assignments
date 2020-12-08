@@ -1,9 +1,12 @@
+"""
+Operations on Git tree objects
+"""
 import os
 import pathlib
 import stat
+import sys
 import time
 import typing as tp
-import sys
 
 from pyvcs.index import GitIndexEntry, read_index
 from pyvcs.objects import hash_object
@@ -14,46 +17,42 @@ def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], dirname: str
     """
     Write a tree as a git object and return its' hash
     """
-    # State of the function address: returns correct results for files, infinitely recurses for directories
-    #list_of_files = something-something no one told me
-    list_of_files = [pathlib.Path("animals.txt")] # test
-    # basically, we have this in subdirs:
-    # .
-    #    alphabeta
-    #       letters.txt
-    #    numbers
-    #       digits.txt
-    #    quote.txt
-    # So the algo should go like this:
-    #   alphabeta is a dir -> "040000 alphabeta\0{here we recurse to write_tree}" --------------------------------------------------------|
-    #       recursion is here -> letters.txt is a file -> "100644 letters.txt\0{blob_hash}", then we hash it and return to upper level    |
-    #|------------------------------------------------------------------------------------------------------------------------------------|
-    #|->numbers is a dir -> "040000 numbers\0{here we recurse to write_tree}" ----------------------------------------------------------|
-    #       recursion is here -> digits.txt is a file -> "100644 digits.txt\0{blob_hash}", then we hash it and return to upper level    |
-    #|----------------------------------------------------------------------------------------------------------------------------------|
-    #|->quote.txt is a file -> "100644 quote.txt\0{blob_hash}"
-    #
-    # End result is kinda like:
-    # "040000 alphabeta\0{tree_hash}100644 letters.txt\0{blob_hash}040000 numbers\0{tree_hash}100644 digits.txt\0{blob_hash}100644 quote.txt\0{blob_hash}"
-    # Then we hash it and return the result.
     tree_entries = []
-    for filename in list_of_files:
-        if filename.is_file():
-            with filename.open("rb") as f:
-                data = f.read()
-            mode = str(oct(filename.stat().st_mode))[2:]
-            tree_entry = f"{mode} {str(filename)[str(filename).find(os.sep)+1:]}\0".encode()
+    for entry in index:
+        if dirname:  # if we got in here from a recursive call
+            prefix, name = os.path.split(
+                dirname
+            )  # yield a path before the name and the name itself
+            # i.e, "/foo/bar/baz" -> prefix=="/foo/bar", name=="baz"
+        else:  # not from a recursive call, start at the entry name
+            prefix, name = os.path.split(entry.name)
+        if prefix:  # if we have is in a directory
+            start, _ = os.path.split(prefix)  # start splitting off chunks of the path
+            while start.find(os.sep) != -1:  # we can't stop until we get the new full path
+                # (from dirname to the entry.name file)
+                start, remainder = os.path.split(start)
+                name = remainder + name  # add to the path
+            mode = "40000"  # mode magic
+            tree_entry = f"{mode} {prefix}\0".encode()
+            tree_entry += bytes.fromhex(
+                write_tree(gitdir, index, name)
+            )  # recursively call write_tree to add the underlying directory as a tree
+            tree_entries.append(tree_entry)  # adds the directory that exists in the root
+        else:  # we have a file
+            if (
+                dirname and entry.name.find(dirname) == -1
+            ):  # if dirname exists, but does not point to the current file
+                continue  # skip the file when creating subtree
+            with open(entry.name, "rb") as content:
+                data = content.read()
+            mode = str(oct(entry.mode))[2:]
+            tree_entry = f"{mode} {name}\0".encode()
             tree_entry += bytes.fromhex(hash_object(data, "blob", write=True))
             tree_entries.append(tree_entry)
-        else:
-            mode = "040000"
-            tree_entry = f"{mode} {filename}\0".encode()
-            sha = bytes.fromhex(write_tree(gitdir, index, str(filename)))
-            tree_entry += sha
-            tree_entries.append(tree_entry)
 
-    data = b"".join(tree_entries)
-    return hash_object(data, "tree", write=True)
+    tree_binary = b"".join(tree_entries)
+    return hash_object(tree_binary, "tree", write=True)
+
 
 def commit_tree(
     gitdir: pathlib.Path,
@@ -62,5 +61,8 @@ def commit_tree(
     parent: tp.Optional[str] = None,
     author: tp.Optional[str] = None,
 ) -> str:
+    """
+    Commit a tree
+    """
     # PUT YOUR CODE HERE
     ...

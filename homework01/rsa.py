@@ -17,7 +17,9 @@ def is_prime(n: int) -> bool:
     # Simple trial division (optimized by 6k+-1). Slow for large n, but easy to implement.
     if n <= 3:  # 1, 2, 3 are edge cases
         return n > 1
-    elif (n % 2) == 0 or (n % 3) == 0:  # rule out even numbers and numbers divisible by 3
+    elif (n % 2) == 0 or (
+        n % 3
+    ) == 0:  # rule out even numbers and numbers divisible by 3
         return False
     else:
         i = 5
@@ -88,7 +90,9 @@ def multiplicative_inverse(e: int, phi: int) -> int:
     return 0
 
 
-def generate_keypair(p: int, q: int) -> tp.Tuple[tp.Tuple[int, int], tp.Tuple[int, int]]:
+def generate_keypair(
+    p: int, q: int
+) -> tp.Tuple[tp.Tuple[int, int], tp.Tuple[int, int]]:
     if not (is_prime(p) and is_prime(q)):
         raise ValueError("Both numbers must be prime.")
     elif p == q:

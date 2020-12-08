@@ -67,7 +67,7 @@ def read_object(sha: str, gitdir: pathlib.Path) -> tp.Tuple[str, bytes]:
     Return object content
     """
     obj_name = resolve_object(sha, gitdir)[0]
-    assert len(resolve_object(sha, gitdir)) == 1 # must resolve the hash to one object only
+    assert len(resolve_object(sha, gitdir)) == 1  # must resolve the hash to one object only
     obj_dir = pathlib.Path(obj_name[:2])
     obj_file_name = pathlib.Path(obj_name[2:])
     path = gitdir / "objects" / obj_dir / obj_file_name
@@ -77,10 +77,9 @@ def read_object(sha: str, gitdir: pathlib.Path) -> tp.Tuple[str, bytes]:
     header = data[:newline_pos]
     space_pos = header.find(b" ")
     obj_type = header[:space_pos].decode("ascii")
-    if obj_type == "blob":
-        content_len = int(header[space_pos:newline_pos].decode("ascii"))
-        content = data[newline_pos + 1 :]
-        assert content_len == len(content)
+    content_len = int(header[space_pos:newline_pos].decode("ascii"))
+    content = data[newline_pos + 1 :]
+    assert content_len == len(content)
     return (obj_type, content)
 
 

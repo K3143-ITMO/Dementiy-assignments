@@ -7,9 +7,9 @@ import pathlib
 import string
 import struct
 import typing as tp
-import sys
 
 from pyvcs.objects import hash_object
+
 
 class GitIndexEntry(tp.NamedTuple):
     """
@@ -41,17 +41,15 @@ class GitIndexEntry(tp.NamedTuple):
             self.mtime_s,
             self.mtime_n,
             self.dev,
-            self.ino & 0xFFFFFFFF, # truncate to 4 bytes
+            self.ino & 0xFFFFFFFF,  # truncate to 4 bytes
             self.mode,
             self.uid,
             self.gid,
             self.size,
             self.sha1,
-            self.flags
+            self.flags,
         )  # ints prepared for straight-forward packing
-        bytecast_str = struct.pack(
-            "!LLLLLLLLLL20sH", *values
-        )  # pack
+        bytecast_str = struct.pack("!LLLLLLLLLL20sH", *values)  # pack
         bytecast_str += self.name.encode("ascii")  # simply concatenate the encoded string
         if not len(bytecast_str) % 8 == 0:  # if struct is not aligned to 8 byte-divisible size
             padding_size = 8 - (len(bytecast_str) % 8)  # calculate padded size
@@ -77,9 +75,7 @@ class GitIndexEntry(tp.NamedTuple):
             data = data[:-1]  # remove it from the data stream
             last_byte = data[-1]  # update last_char
         name = name[::-1]  # reverses the name (i. e, "txt.rab" converts to "bar.txt")
-        unpacked = struct.unpack(
-            "!LLLLLLLLLL20sH", data
-        )
+        unpacked = struct.unpack("!LLLLLLLLLL20sH", data)
         index_entry = GitIndexEntry(
             unpacked[0],
             unpacked[1],
@@ -108,23 +104,25 @@ def read_index(gitdir: pathlib.Path) -> tp.List[GitIndexEntry]:
     with open(gitdir / "index", "rb") as index_file:
         data = index_file.read()
     entry_count = struct.unpack("!i", data[8:12])[0]
-    data = data[12:] # truncate byte stream
+    data = data[12:]  # truncate byte stream
     for _ in range(entry_count):  # for each entry
         entry = data[:60]  # 60 bytes are 10 4 byte ints + 20 byte sha
-        flags = data[60:62] # 2-byte flags
-        data = data[62:] # truncate byte stream
+        flags = data[60:62]  # 2-byte flags
+        data = data[62:]  # truncate byte stream
         entry += flags
-        flags = int.from_bytes(flags, "big") # cast to int
+        num_flags = int.from_bytes(flags, "big")  # cast to int
         # namelen will be equal to flags because every other flag bit is 0
         # (Dementiy magic)
-        name = data[:flags].decode()
-        data = data[flags:]
+        name = data[:num_flags].decode()
+        data = data[num_flags:]
         # not implementing getting name if namelen > 0xFFF
         entry += name.encode()
-        while True: # just don't touch this, plz
-            if len(data) == 0: break # no entries left, abort
+        while True:  # just don't touch this, plz
+            if len(data) == 0:
+                break  # no entries left, abort
             byte = chr(data[0])
-            if byte != "\x00": break # not padding
+            if byte != "\x00":
+                break  # not padding
             entry += byte.encode("ascii")  # add padding
             data = data[1:]  # truncate byte from byte stream
 
@@ -164,8 +162,8 @@ def ls_files(gitdir: pathlib.Path, details: bool = False) -> None:
                 2:
             ]  # get mode in decimal, convert to octal, convert to string, strip prefix ("0o")
             sha = entry.sha1.hex()
-            stage = (entry.flags >> 12) & 3 # Dementiy bit-field magic
-            print(f"{mode} {sha} {stage}\t{entry.name}")  
+            stage = (entry.flags >> 12) & 3  # Dementiy bit-field magic
+            print(f"{mode} {sha} {stage}\t{entry.name}")
     else:
         for entry in index_entries:
             print(f"{entry.name}")
@@ -196,9 +194,9 @@ def update_index(gitdir: pathlib.Path, paths: tp.List[pathlib.Path], write: bool
         # 13 bits name_len (or 0xFFF)
         # So overall flags == name_len
         index_entry = GitIndexEntry(
-            int(os_stats.st_ctime), # apparently this is float
+            int(os_stats.st_ctime),  # apparently this is float
             0,
-            int(os_stats.st_mtime), # apparently this is float
+            int(os_stats.st_mtime),  # apparently this is float
             0,
             os_stats.st_dev,
             os_stats.st_ino,

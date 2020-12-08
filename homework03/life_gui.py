@@ -4,8 +4,9 @@ Conway's Game Of Life, GUI version
 # pylint: disable=no-member
 import pathlib
 
-import life
 import pygame
+
+import life
 from life import GameOfLife
 from ui import UI
 
