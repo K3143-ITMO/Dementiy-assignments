@@ -4,7 +4,6 @@ Operations on Git tree objects
 import os
 import pathlib
 import stat
-import sys
 import time
 import typing as tp
 
@@ -27,13 +26,6 @@ def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], dirname: str
         if len(names) != 1:  # if we have is in a directory
             prefix = names[0]
             name = f"{os.sep}".join(names[1:])
-            #print(f"start for directory {prefix} before while: {start}", file=sys.stderr)
-            #while start.find(os.sep) != -1:  # we can't stop until we get the new full path
-            #    print("must get full path")
-            #    # (from dirname to the entry.name file)
-            #    start, remainder = os.path.split(start)
-            #    print(f"remainder is {remainder}")
-            #    name = remainder + name  # add to the path
             mode = "40000"  # mode magic
             tree_entry = f"{mode} {prefix}\0".encode()
             tree_entry += bytes.fromhex(
@@ -66,5 +58,28 @@ def commit_tree(
     """
     Commit a tree
     """
-    # PUT YOUR CODE HERE
-    ...
+    timestamp = int(time.mktime(time.localtime()))
+    timezone = time.timezone if (time.localtime().tm_isdst == 0) else time.altzone
+    timezone = int(timezone / 60 / 60 * -1)
+    if timezone > 0:
+        tz_offset = f"+0{timezone}00"  # not counting exotic timezones
+    elif timezone < 0:
+        tz_offset = f"-0{timezone}00"  # not counting exotic timezones
+    else:
+        tz_offset = "0000"  # not sure is it is so
+    if not author:
+        author = ""
+    email = os.getenv("GIT_AUTHOR_EMAIL")
+    if not email:
+        email = ""
+    if not parent:
+        parent = ""
+
+    author_str = f"{author} <{email}>"
+
+    # let's say that author and committer are the same
+    data = f"tree {tree}\n"
+    if parent:
+        data += f"parent {parent}\n"
+    data += f"author {author} {timestamp} {tz_offset}\ncommitter {author} {timestamp} {tz_offset}\n\n{message}\n"
+    return hash_object(data.encode(), "commit", write=True)

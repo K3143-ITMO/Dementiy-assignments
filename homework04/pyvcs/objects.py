@@ -6,7 +6,6 @@ import os
 import pathlib
 import re
 import stat
-import sys
 import typing as tp
 import zlib
 
@@ -58,8 +57,11 @@ def find_object(obj_name: str, gitdir: pathlib.Path) -> str:
     """
     Not required, but might be useful
     """
-    # PUT YOUR CODE HERE
-    ...
+    # No idea what this should do, so it will return the path to an object
+    dir_name = obj_name[:2]
+    file_name = obj_name[2:]
+    path = str(gitdir) + os.sep + dir_name + os.sep + file_name
+    return path
 
 
 def read_object(sha: str, gitdir: pathlib.Path) -> tp.Tuple[str, bytes]:
@@ -87,35 +89,79 @@ def read_tree(data: bytes) -> tp.List[tp.Tuple[int, str, str]]:
     """
     Read a tree
     """
-    # PUT YOUR CODE HERE
-    ...
+    tree_entries: tp.List[tp.Tuple[int, str, str]] = []
+    while len(data) != 0:  # counting backwards is easier
+        sha = bytes.hex(data[-20:])  # get hash
+        data = data[:-21]  # truncate hash and \x00
+        obj_type, _ = read_object(sha, repo_find())
+        space_pos = data.rfind(b" ")
+        name = data[space_pos + 1 :].decode("ascii")
+        data = data[:space_pos]
+        if obj_type == "tree":
+            mode = "40000"
+        else:
+            mode = data[-6:].decode("ascii")
+        mode_len = -1 * len(mode)
+        data = data[:mode_len]
+        mode_int = int(mode)
+        tree_entries.insert(0, (mode_int, sha, name))
+    return tree_entries
 
 
 def cat_file(obj_name: str, pretty: bool = True) -> None:
     """
     Print file content by hash
     """
-    # just blobs for now
     gitdir = repo_find()
-    _, content = read_object(obj_name, gitdir)
-    if pretty:
-        result = content.decode("ascii")
-    else:
-        result = str(content)
-    print(result)
+    obj_type, content = read_object(obj_name, gitdir)
+    if obj_type == "blob":
+        if pretty:
+            result = content.decode("ascii")
+            print(result)
+        else:
+            result = str(content)
+            print(result)
+    elif obj_type == "tree":
+        tree_entries = read_tree(content)
+        result = ""
+        for entry in tree_entries:
+            mode = str(entry[0])
+            if len(mode) != 6:  # pad the mode for dirs
+                mode = "0" + mode
+            tree_pointer_type, _ = read_object(entry[1], gitdir)
+            print(f"{mode} {tree_pointer_type} {entry[1]}\t{entry[2]}")
+    else:  # no tags supported
+        _, content = read_object(resolve_object(obj_name, repo_find())[0], repo_find())
+        print(content.decode())
 
 
-def find_tree_files(tree_sha: str, gitdir: pathlib.Path) -> tp.List[tp.Tuple[str, str]]:
+def find_tree_files(
+    tree_sha: str, gitdir: pathlib.Path, accumulator: str = ""
+) -> tp.List[tp.Tuple[str, str]]:
     """
     Correlate tree to files
     """
-    # PUT YOUR CODE HERE
-    ...
+    tree_files = []
+    _, tree = read_object(tree_sha, gitdir)  # start at something
+    tree_entries = read_tree(tree)
+    for entry in tree_entries:
+        pointer_type, _ = read_object(entry[1], gitdir)
+        path = pathlib.Path(entry[2]).relative_to(gitdir.parent)
+        if path.is_dir():
+            accumulator += str(path) + os.sep
+        if pointer_type == "tree":
+            tree_files += find_tree_files(entry[1], gitdir, accumulator)
+        else:  # can't be anything other than "blob"
+            tree_files.append((entry[1], accumulator + str(path)))
+    return tree_files
 
 
 def commit_parse(raw: bytes, start: int = 0, dct=None):
     """
-    Parse a commit
+    Get the sha of a tree the commit is pointing to (stub)
     """
-    # PUT YOUR CODE HERE
-    ...
+    data = raw.decode("ascii")
+    data = data[5:]
+    author_pos = data.find("author")
+    tree = data[: author_pos - 2]
+    return tree
