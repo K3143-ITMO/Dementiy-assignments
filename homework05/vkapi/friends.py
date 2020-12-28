@@ -89,7 +89,7 @@ def get_mutual(
             return response["response"]
         raise APIError
 
-    res: tp.Union[tp.List[int], tp.List[MutualFriends]] = []
+    res = []  # type: ignore
     if not target_uids:
         raise Exception
     window = range(0, len(target_uids), 100)
@@ -114,7 +114,7 @@ def get_mutual(
         else:
             raise APIError
         res.extend(
-            MutualFriends(
+            MutualFriends(  # type: ignore
                 id=info["id"],
                 common_friends=info["common_friends"],
                 common_count=info["common_count"],

@@ -6,7 +6,6 @@ from string import Template
 import pandas as pd
 from pandas import json_normalize
 from requests.api import post
-
 from vkapi import config, session
 from vkapi.exceptions import APIError
 
@@ -27,25 +26,45 @@ def get_posts_2500(
     else:
         code_fields = ""
 
-    code = f"""
-    var result = [];
-    var cursor = {offset};
-    while (cursor < {max_count + offset}) {{
-        var frame = API.wall.get({{
+    if max_count > 2500:
+        max_count = 2500
+    if max_count <= 100:
+        code = f"""
+        return API.wall.get({{
             "owner_id": "{owner_id}",
             "domain": "{domain}",
-            "offset": cursor,
-            "count": {count},
-            "extended": {extended},
+            "offset": {offset},
+            "count": {max_count},
             "filter": "{filter}",
+            "extended": {extended},
             "fields": "{code_fields}",
-            "v": "{config.VK_CONFIG["version"]}"
-        }});
-        cursor = cursor + 100;
-        result.push(frame);
-    }}
-    return result;
-    """
+            "v": {config.VK_CONFIG["version"]}
+        }}).items;
+        """
+    else:
+        code = f"""
+        var wall_records = [];
+        var offset = 100 + {offset};
+        var count = {count};
+        var max_offset = offset + {max_count};
+        while (offset < max_offset && wall_records.length <= offset && offset-{offset} < {max_count}) {{
+            if ({max_count} - wall_records.length < 100) {{
+                count = {max_count} - wall_records.length;
+            }};
+            wall_records = wall_records + API.wall.get({{
+                "owner_id": "{owner_id}",
+                "domain": "{domain}",
+                "offset": offset,
+                "count": count,
+                "filter": "{filter}",
+                "extended": {extended},
+                "fields": "{code_fields}",
+                "v": {config.VK_CONFIG["version"]}
+            }}).items;
+            offset = offset + 100;
+        }};
+        return wall_records;
+        """
 
     response = session.post(
         url="execute",
@@ -87,9 +106,62 @@ def get_wall_execute(
     :param progress: Callback для отображения прогресса.
     """
 
-    post_frame = get_posts_2500(
-        owner_id, domain, offset, count, max_count, filter, extended, fields
-    )["items"]
-    print(post_frame)
+    code = f"""
+    return API.wall.get({{
+        "owner_id": "{owner_id}",
+        "domain": "{domain}",
+        "offset": {offset},
+        "count": "1",
+        "filter": "{filter}",
+        "extended": {extended},
+        "v": {config.VK_CONFIG["version"]}
+    }});
+    """
 
-    return json_normalize(post_frame)
+    response = session.post(
+        url="execute",
+        data={
+            "code": code,
+            "access_token": config.VK_CONFIG["access_token"],
+            "v": config.VK_CONFIG["version"],
+        },
+    ).json()
+    if "error" in response:
+        raise APIError
+    posts = response["response"]
+
+    if response["response"]["count"] - offset > count and count != 0:
+        max_count = count
+    else:
+        max_count = response["response"]["count"] - offset
+
+    if max_count == 0:
+        return json_normalize(posts["items"])
+
+    window = range(0, max_count, 100)
+
+    if progress:
+        window = progress(window)
+
+    num_records = max_count - len(posts)
+
+    for _ in window:
+        try:
+            posts2500 = get_posts_2500(
+                owner_id=owner_id,
+                domain=domain,
+                offset=offset + len(posts),
+                max_count=num_records,
+                filter=filter,
+                extended=extended,
+                fields=fields,
+            )
+            posts.update(posts2500)
+            if not (max_count - len(posts)) > num_records:
+                num_records = max_count - len(posts)
+        except:
+            raise APIError
+
+        time.sleep(1 / 3 + 0.01)
+
+    return json_normalize(posts["items"])
