@@ -101,7 +101,7 @@ def get_mutual(
             "friends.getMutual",
             params={
                 "source_uid": source_uid,
-                "target_uids": target_uids[pos : pos + 100],
+                "target_uids": ",".join([str(i) for i in target_uids[pos : pos + 100]]),
                 "order": order,
                 "count": count,
                 "offset": offset + pos,
