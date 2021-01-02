@@ -74,7 +74,6 @@ class FriendsTestCase(unittest.TestCase):
             json={"response": [{"id": 3, "common_friends": [1, 2], "common_count": 2}]},
             status=200,
         )
-
         mutual_friends = get_mutual(target_uids=list(range(300)))
         self.assertEqual(
             [
