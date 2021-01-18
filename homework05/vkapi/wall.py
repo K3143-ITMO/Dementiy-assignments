@@ -73,9 +73,12 @@ def get_posts_2500(
             "access_token": config.VK_CONFIG["access_token"],
             "v": config.VK_CONFIG["version"],
         },
-    ).json()
-    if "response" in response:
-        return response["response"]
+    )
+    if response.status_code != "200":  # Something bad happened, i think
+        raise APIError
+    resp_json = response.json()
+    if "response" in resp_json:
+        return resp_json["response"]
     raise APIError
 
 
@@ -125,15 +128,18 @@ def get_wall_execute(
             "access_token": config.VK_CONFIG["access_token"],
             "v": config.VK_CONFIG["version"],
         },
-    ).json()
-    if "error" in response:
+    )
+    if response.status_code != "200":  # Something bad happened, i think
         raise APIError
-    posts = response["response"]
+    resp_json = response.json()
+    if "error" in resp_json:
+        raise APIError
+    posts = resp_json["response"]
 
-    if response["response"]["count"] - offset > count and count != 0:
+    if resp_json["response"]["count"] - offset > count and count != 0:
         max_count = count
     else:
-        max_count = response["response"]["count"] - offset
+        max_count = resp_json["response"]["count"] - offset
 
     if max_count == 0:
         return json_normalize(posts["items"])
