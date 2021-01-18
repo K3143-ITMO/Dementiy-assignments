@@ -39,7 +39,7 @@ def get_friends(
             "v": config.VK_CONFIG["version"],
         },
     )
-    if response.status_code != 200:  # Something bad happened, i think
+    if response.status_code == 500:  # Internal Server Error
         raise APIError
     resp_json = response.json()
     if "response" in resp_json:
@@ -88,7 +88,7 @@ def get_mutual(
                 "v": config.VK_CONFIG["version"],
             },
         )
-        if response.status_code != 200:  # Something bad happened, i think
+        if response.status_code == 500:  # Internal Server Error
             raise APIError
         resp_json = response.json()
         if "response" in resp_json:
@@ -115,7 +115,7 @@ def get_mutual(
                 "v": config.VK_CONFIG["version"],
             },
         )
-        if response.status_code != "200":  # Something bad happened, i think
+        if response.status_code == 500:  # Internal Server Error
             raise APIError
         resp_json = response.json()
         if "response" in resp_json:

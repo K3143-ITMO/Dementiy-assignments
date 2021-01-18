@@ -74,7 +74,7 @@ def get_posts_2500(
             "v": config.VK_CONFIG["version"],
         },
     )
-    if response.status_code != "200":  # Something bad happened, i think
+    if response.status_code == 500:  # Internal Server Error
         raise APIError
     resp_json = response.json()
     if "response" in resp_json:
@@ -129,7 +129,7 @@ def get_wall_execute(
             "v": config.VK_CONFIG["version"],
         },
     )
-    if response.status_code != "200":  # Something bad happened, i think
+    if response.status_code == 500:  # Internal Server Error
         raise APIError
     resp_json = response.json()
     if "error" in resp_json:
