@@ -38,9 +38,12 @@ def get_friends(
             "access_token": config.VK_CONFIG["access_token"],
             "v": config.VK_CONFIG["version"],
         },
-    ).json()
-    if "response" in response:
-        data = response["response"]
+    )
+    if response.status_code != 200:  # Something bad happened, i think
+        raise APIError
+    resp_json = response.json()
+    if "response" in resp_json:
+        data = resp_json["response"]
     else:
         raise APIError
     return FriendsResponse(count=data["count"], items=data["items"])
@@ -84,9 +87,12 @@ def get_mutual(
                 "access_token": config.VK_CONFIG["access_token"],
                 "v": config.VK_CONFIG["version"],
             },
-        ).json()
-        if "response" in response:
-            return response["response"]
+        )
+        if response.status_code != 200:  # Something bad happened, i think
+            raise APIError
+        resp_json = response.json()
+        if "response" in resp_json:
+            return resp_json["response"]
         raise APIError
 
     res = []  # type: ignore
@@ -108,9 +114,12 @@ def get_mutual(
                 "access_token": config.VK_CONFIG["access_token"],
                 "v": config.VK_CONFIG["version"],
             },
-        ).json()
-        if "response" in response:
-            data = response["response"]
+        )
+        if response.status_code != "200":  # Something bad happened, i think
+            raise APIError
+        resp_json = response.json()
+        if "response" in resp_json:
+            data = resp_json["response"]
         else:
             raise APIError
         res.extend(
