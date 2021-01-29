@@ -1,5 +1,6 @@
-import vkapi
 from setuptools import setup  # type: ignore
+
+import vkapi
 
 AUTHOR = "Dmitrii Sorokin"
 AUTHOR_EMAIL = "dementiy@yandex.ru"
