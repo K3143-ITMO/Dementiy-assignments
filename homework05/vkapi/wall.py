@@ -6,6 +6,7 @@ from string import Template
 import pandas as pd
 from pandas import json_normalize
 from requests.api import post
+
 from vkapi import config, session
 from vkapi.exceptions import APIError
 
@@ -74,12 +75,14 @@ def get_posts_2500(
             "v": config.VK_CONFIG["version"],
         },
     )
-    if response.status_code == 500:  # Internal Server Error
-        raise APIError
+    if response.status_code != 200:
+        raise APIError(f"Server Error: {response.status_code}")
     resp_json = response.json()
-    if "response" in resp_json:
-        return resp_json["response"]
-    raise APIError
+    if "error" in resp_json:
+        error_code = resp_json["error"]["error_code"]
+        error_msg = resp_json["error"]["error_msg"]
+        raise APIError(f"VK API Error (code {error_code}): {error_msg}")
+    return resp_json["response"]
 
 
 def get_wall_execute(
@@ -129,11 +132,14 @@ def get_wall_execute(
             "v": config.VK_CONFIG["version"],
         },
     )
-    if response.status_code == 500:  # Internal Server Error
-        raise APIError
+
+    if response.status_code != 200:
+        raise APIError(f"Server Error: {response.status_code}")
     resp_json = response.json()
     if "error" in resp_json:
-        raise APIError
+        error_code = resp_json["error"]["error_code"]
+        error_msg = resp_json["error"]["error_msg"]
+        raise APIError(f"VK API Error (code {error_code}): {error_msg}")
     posts = resp_json["response"]
 
     if resp_json["response"]["count"] - offset > count and count != 0:
