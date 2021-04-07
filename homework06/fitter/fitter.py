@@ -252,7 +252,7 @@ def move_score(alpha: float, marker: int) -> float:
 
 
 def get_best_random(alpha: float, marker: int, attempts: int) -> None:
-    verbose_print("Trying to reshuffle database for best score", 5)
+    verbose_print("Trying to reshuffle database for best score", 3)
     max_score: float = 0.0
     for i in tqdm.tqdm(range(attempts), desc="Attempting database reshuffles"):
         verbose_print(f"Reshuffle attempt {i+1}", 4)
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     )
     namespace = parser.parse_args()
     VERBOSITY_LEVEL = namespace.verbose
-    if namespace.attempts and not namespace.shuffle_database:
+    if (namespace.attempts != 100) and not namespace.shuffle_database:
         parser.error("-s required when attempts is set")
     if namespace.shuffle_database:
         alpha, marker = parse_results()
