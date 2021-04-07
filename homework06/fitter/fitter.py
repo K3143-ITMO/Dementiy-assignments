@@ -318,6 +318,6 @@ if __name__ == "__main__":
         alpha, marker = parse_results()
         verbose_print(f"Parsed out alpha and marker", 3)
         verbose_print(f"Reshuffling data to move score...", 2)
-        get_best_random(0.1, 600, namespace.attempts)
+        get_best_random(alpha, marker, namespace.attempts)
     else:
         driver()
