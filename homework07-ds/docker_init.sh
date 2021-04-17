@@ -20,7 +20,7 @@ fi
 
 docker run --name local-postgres -p 5432:5432 -e POSTGRES_PASSWORD=secret -d --volumes-from postgres-data --ip=127.0.0.1 --hostname localhost postgres:latest > /dev/null 2>&1
 
-sleep 1
+sleep 1 
 
 echo "Entering container. Please check if odscourse db exists."
 docker exec -it local-postgres sh -c 'psql -U postgres'
