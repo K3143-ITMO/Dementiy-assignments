@@ -1,5 +1,6 @@
-import psycopg2
 import csv
+
+import psycopg2
 
 conn = psycopg2.connect("host=localhost port=5432 dbname=odscourse user=postgres password=secret")
 cursor = conn.cursor()
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS adult_data (
 cursor.execute(query)
 conn.commit()
 
-with open('../data/adult.data.csv', 'r') as f:
+with open("../data/adult.data.csv", "r") as f:
     reader = csv.reader(f)
     # Skip the header row
     next(reader)
@@ -37,6 +38,6 @@ with open('../data/adult.data.csv', 'r') as f:
             break
         cursor.execute(
             "INSERT INTO adult_data VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            [Id] + row
+            [Id] + row,  # type: ignore
         )
 conn.commit()
