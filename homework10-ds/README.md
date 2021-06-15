@@ -3,7 +3,7 @@
 ## IPython notebook in Google Colab
 Это задание нужно писать в тетрадке IPython. Версия для общих наработок будет тут.
 
-Кнопка для открытия в Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tairovzahar/cs102/blob/homework10-ds/homework10-ds/LogisticRegression.ipynb)
+Кнопка для открытия в Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/K3143-ITMO/Dementiy-assignments/blob/Shaorrran-homework10-ds/homework10-ds/LogisticRegression.ipynb)
 
 ## Примечания
 
