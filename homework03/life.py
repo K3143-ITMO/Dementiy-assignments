@@ -12,6 +12,8 @@ Cells = tp.List[int]
 Grid = tp.List[Cells]
 
 
+history: tp.List[Grid] = []
+
 class GameOfLife:
     """
     Business logic class
@@ -33,6 +35,8 @@ class GameOfLife:
         self.max_generations = max_generations
         # Текущее число поколений
         self.generations = 1
+        # Add generation to history
+        history.append(self.curr_generation)
 
     def is_alive(self, cell: Cell) -> bool:
         """
@@ -112,6 +116,7 @@ class GameOfLife:
         self.prev_generation = self.curr_generation[:]
         self.curr_generation = self.get_next_generation()
         self.generations += 1
+        history.append(self.curr_generation)
 
     @property
     def is_max_generations_exceeded(self) -> bool:
@@ -127,7 +132,11 @@ class GameOfLife:
         """
         Изменилось ли состояние клеток с предыдущего шага.
         """
-        return self.prev_generation != self.curr_generation
+        for state in history:
+            if self.curr_generation == state:
+                return True
+        #return self.prev_generation != self.curr_generation
+        return False
 
     @staticmethod
     def from_file(filename: pathlib.Path) -> "GameOfLife":
