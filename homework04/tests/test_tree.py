@@ -4,9 +4,8 @@ import time
 import unittest
 from unittest.mock import patch
 
-from pyfakefs.fake_filesystem_unittest import TestCase
-
 import pyvcs
+from pyfakefs.fake_filesystem_unittest import TestCase
 from pyvcs.index import read_index, update_index
 from pyvcs.repo import repo_create
 from pyvcs.tree import commit_tree, write_tree
@@ -54,7 +53,7 @@ class WriteTreeTestCase(TestCase):
         self.assertTrue(numbers_tree_obj.exists())
 
 
-@unittest.skipIf(pyvcs.__version_info__ < (0, 6, 0), "Нужна версия пакета 0.6.0 и выше")
+@unittest.skipIf(pyvcs.__version_info__ < (0, 6, 0), "cНужна версия пакета 0.6.0 и выше")
 class CommitTreeTestCase(TestCase):
     def setUp(self):
         self.setUpPyfakefs()
