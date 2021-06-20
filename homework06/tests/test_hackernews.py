@@ -79,7 +79,6 @@ class HackernewsTestCase(unittest.TestCase):
                 pass  # ignore redirects
         s = fake_db.session()
         row = s.query(fake_db.News).filter(fake_db.News.id == 1).first()
-        print(f"got row: ", row.title)
         label = row.label
         self.assertEqual(label, "good")
 
