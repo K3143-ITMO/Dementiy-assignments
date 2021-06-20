@@ -135,8 +135,4 @@ dmypy.json
 .pytype/
 
 # Cython debug symbols
-<<<<<<< HEAD
 cython_debug/
-=======
-cython_debug/
->>>>>>> master
